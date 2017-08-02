@@ -44,6 +44,13 @@
 #include <sys/param.h>
 #include <sys/vnode.h>
 
+/*
+ *  Needed for statfs_x function to support very big volumes
+ */
+#ifdef __APPLE__
+#include <sys/mount.h>
+#endif
+
 #if defined(_POSIX_C_SOURCE)
 typedef unsigned char  u_char;
 typedef unsigned short u_short;
@@ -678,6 +685,21 @@ loopback_statfs(const char *path, struct statvfs *stbuf)
     return 0;
 }
 
+#ifdef __APPLE__
+static int
+loopback_statfs_x(const char *path, struct statfs *stbuf)
+{
+    int res;
+
+    res = statfs(path, stbuf);
+    if (res == -1) {
+        return -errno;
+    }
+
+    return 0;
+}
+#endif
+
 static int
 loopback_flush(const char *path, struct fuse_file_info *fi)
 {
@@ -941,6 +963,10 @@ static struct fuse_operations loopback_oper = {
     .fallocate   = loopback_fallocate,
 #endif
     .setvolname  = loopback_setvolname,
+
+#if __APPLE__
+    .statfs_x    = loopback_statfs_x,
+#endif
 
 #if FUSE_VERSION >= 29
 #if HAVE_FSETATTR_X
